@@ -1,0 +1,43 @@
+[
+  {
+    "period": "morning",
+    "time_range": {"start": 6, "end": 12},
+    "steps": [
+      "Wake up and drink a glass of water",
+      "Brush your teeth",
+      "Take your morning medication",
+      "Eat breakfast",
+      "Get dressed"
+    ]
+  },
+  {
+    "period": "afternoon",
+    "time_range": {"start": 12, "end": 17},
+    "steps": [
+      "Eat lunch",
+      "Take your afternoon medication if needed",
+      "Rest or go for a short walk",
+      "Call a family member or friend"
+    ]
+  },
+  {
+    "period": "evening",
+    "time_range": {"start": 17, "end": 22},
+    "steps": [
+      "Eat dinner",
+      "Take your evening medication",
+      "Watch some TV or read",
+      "Brush your teeth",
+      "Get ready for bed"
+    ]
+  },
+  {
+    "period": "night",
+    "time_range": {"start": 22, "end": 6},
+    "steps": [
+      "It's nighttime. Try to get some rest.",
+      "If you can't sleep, stay in bed and breathe slowly.",
+      "Everything is okay — it's just time to sleep."
+    ]
+  }
+]
