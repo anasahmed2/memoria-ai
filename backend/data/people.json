@@ -1,0 +1,20 @@
+[
+  {
+    "name": "Sarah",
+    "relationship": "daughter",
+    "notes": "Visits often, very supportive. Has two kids named Lily and Tom.",
+    "image": "sarah.jpg"
+  },
+  {
+    "name": "Michael",
+    "relationship": "son",
+    "notes": "Lives in Toronto. Calls every Sunday evening.",
+    "image": "michael.jpg"
+  },
+  {
+    "name": "Dr. Patel",
+    "relationship": "doctor",
+    "notes": "Your family physician. Clinic is on Main Street.",
+    "image": "dr_patel.jpg"
+  }
+]
