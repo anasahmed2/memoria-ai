@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
-from app.routers import memory, calming, routine
+from app.routers import memory, calming, routine, chat
 
 load_dotenv()
 
@@ -17,6 +17,7 @@ app.add_middleware(
 app.include_router(memory.router)
 app.include_router(calming.router)
 app.include_router(routine.router)
+app.include_router(chat.router)
 
 @app.get("/health")
 def health_check():
