@@ -3,11 +3,21 @@ import os
 from langchain_community.vectorstores import FAISS
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_core.documents import Document
+from app.services.llm_service import ask_llm
 
 PEOPLE_PATH = "data/people.json"
 FAISS_INDEX_PATH = "data/memory_store/faiss_index"
 
 embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+
+MEMORY_SYSTEM_PROMPT = """
+You are a gentle AI assistant helping someone with dementia remember people in their life.
+You will be given raw memory data about a person.
+Convert it into a warm, simple, spoken response (2-3 sentences max).
+Speak directly to the user as if talking to them — use "your" not "the user's".
+Keep it simple, warm and reassuring. Never mention dementia or memory loss.
+Example: "Sarah is your daughter. She visits you often and has two kids named Lily and Tom."
+"""
 
 def build_index():
     with open(PEOPLE_PATH, "r") as f:
@@ -31,9 +41,25 @@ def load_index():
         return FAISS.load_local(FAISS_INDEX_PATH, embeddings, allow_dangerous_deserialization=True)
     return build_index()
 
-def recall_person(query: str) -> str:
+def recall_person(query: str) -> dict:
     vectorstore = load_index()
     results = vectorstore.similarity_search(query, k=1)
+
     if not results:
-        return "I don't have any information about that person."
-    return results[0].page_content
+        return {
+            "raw": None,
+            "response": "I'm sorry, I don't have any information about that person."
+        }
+
+    raw_data = results[0].page_content
+
+    # Convert raw memory data into a natural spoken response
+    natural_response = ask_llm(
+        system_prompt=MEMORY_SYSTEM_PROMPT,
+        user_message=f"The user asked: '{query}'\n\nMemory data:\n{raw_data}"
+    )
+
+    return {
+        "raw": raw_data,
+        "response": natural_response
+    }

@@ -10,4 +10,8 @@ class QueryRequest(BaseModel):
 @router.post("/recall")
 def recall_memory(request: QueryRequest):
     result = recall_person(request.query)
-    return {"query": request.query, "result": result}
+    return {
+        "query": request.query,
+        "raw": result["raw"],
+        "response": result["response"]
+    }
