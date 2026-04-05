@@ -479,6 +479,31 @@
   gap: 0.4rem;
 }
 
+.step-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
+.step-action-link {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.22rem 0.55rem;
+  background: rgba(38, 179, 163, 0.16);
+  border: 1px solid rgba(38, 179, 163, 0.32);
+  color: #165f57;
+  font-size: 0.76rem;
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.step-action-link:hover {
+  background: rgba(38, 179, 163, 0.24);
+}
+
 .safe-badge {
   margin-top: 0.65rem;
   display: inline-block;

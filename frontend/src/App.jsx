@@ -11,6 +11,7 @@ import {
 import './App.css'
 
 const today = new Date().toISOString().slice(0, 10)
+const BRUSHING_VIDEO_URL = 'https://www.youtube.com/watch?v=3oG_JLuQ8T8'
 
 function App() {
   const [activeView, setActiveView] = useState('patient')
@@ -447,6 +448,9 @@ function App() {
     }
 
     if (message.intent === 'routine' && Array.isArray(message.data.steps) && message.data.steps.length > 0) {
+      const period = String(message.data.period || '').toLowerCase()
+      const brushingEnabled = period === 'morning' || period === 'evening'
+
       return (
         <section className="detail-card intent-routine">
           <p className="intent-kicker">Routine Assistant</p>
@@ -455,9 +459,26 @@ function App() {
             {message.data.current_time || 'Current time'} • {message.data.period || 'Current period'}
           </p>
           <ol className="step-list">
-            {message.data.steps.map((step, index) => (
-              <li key={`${step}-${index}`}>{step}</li>
-            ))}
+            {message.data.steps.map((step, index) => {
+              const isBrushingStep = /brush(ing)? your teeth/i.test(step)
+              return (
+                <li key={`${step}-${index}`}>
+                  <div className="step-row">
+                    <span>{step}</span>
+                    {brushingEnabled && isBrushingStep ? (
+                      <a
+                        className="step-action-link"
+                        href={BRUSHING_VIDEO_URL}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        Watch guide
+                      </a>
+                    ) : null}
+                  </div>
+                </li>
+              )
+            })}
           </ol>
         </section>
       )
