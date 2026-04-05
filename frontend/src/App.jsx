@@ -11,8 +11,7 @@ import {
 import './App.css'
 
 const today = new Date().toISOString().slice(0, 10)
-const INTRO_MESSAGE = 'Hello, I am your personal caregiving AI assistant.'
-const INTRO_SESSION_KEY = 'memoria_intro_played'
+const BRUSHING_VIDEO_URL = 'https://www.youtube.com/watch?v=3oG_JLuQ8T8'
 
 function App() {
   const [activeView, setActiveView] = useState('patient')
@@ -20,15 +19,8 @@ function App() {
   const [isListening, setIsListening] = useState(false)
   const [voiceStatus, setVoiceStatus] = useState('')
   const [voiceSupported, setVoiceSupported] = useState(false)
-  const [chatHistory, setChatHistory] = useState([
-    {
-      role: 'assistant',
-      text: INTRO_MESSAGE,
-      intent: 'general',
-      data: {},
-      timestamp: new Date().toISOString(),
-    },
-  ])
+  const [alwaysListeningEnabled, setAlwaysListeningEnabled] = useState(true)
+  const [chatHistory, setChatHistory] = useState([])
   const [caregiverTasks, setCaregiverTasks] = useState([])
   const [isCaregiverLoading, setIsCaregiverLoading] = useState(false)
   const [caregiverError, setCaregiverError] = useState('')
@@ -41,6 +33,11 @@ function App() {
   })
   const recognitionRef = useRef(null)
   const activeAudioRef = useRef(null)
+  const transcriptBufferRef = useRef('')
+  const flushTimerRef = useRef(null)
+  const resetTimerRef = useRef(null)
+  const shouldRestartRef = useRef(false)
+  const pauseRestartRef = useRef(false)
 
   const latestAssistantMessage = useMemo(() => {
     for (let i = chatHistory.length - 1; i >= 0; i -= 1) {
@@ -66,6 +63,16 @@ function App() {
       return
     }
 
+    const shouldResumeListeningAfterAudio = shouldRestartRef.current
+    if (shouldResumeListeningAfterAudio && recognitionRef.current) {
+      pauseRestartRef.current = true
+      try {
+        recognitionRef.current.stop()
+      } catch (error) {
+        console.error(error)
+      }
+    }
+
     if (activeAudioRef.current) {
       activeAudioRef.current.pause()
       activeAudioRef.current = null
@@ -77,12 +84,22 @@ function App() {
       if (activeAudioRef.current === audio) {
         activeAudioRef.current = null
       }
+      pauseRestartRef.current = false
+      if (shouldResumeListeningAfterAudio && shouldRestartRef.current && !isAsking && recognitionRef.current) {
+        try {
+          recognitionRef.current.start()
+          setVoiceStatus('Listening...')
+        } catch (error) {
+          console.error(error)
+        }
+      }
     }
     audio.play().catch((error) => {
       console.error(error)
+      pauseRestartRef.current = false
       setVoiceStatus('The response is ready, but this browser blocked autoplay.')
     })
-  }, [])
+  }, [isAsking])
 
   const speakAssistantResponse = useCallback(async (responseText) => {
     try {
@@ -101,13 +118,15 @@ function App() {
 
       const payload = await result.json()
       playAssistantAudio(payload.audio_base64, payload.audio_mime)
+      return true
     } catch (error) {
       console.error(error)
       setVoiceStatus('Assistant reply is visible, but audio could not be generated.')
+      return false
     }
   }, [playAssistantAudio])
 
-  async function sendPatientMessage(message) {
+  const sendPatientMessage = useCallback(async (message) => {
     const trimmed = message.trim()
     if (!trimmed || isAsking) {
       return
@@ -167,10 +186,59 @@ function App() {
     } finally {
       setIsAsking(false)
     }
-  }
+  }, [isAsking, speakAssistantResponse])
 
-  async function startVoiceInput() {
-    if (!voiceSupported || isAsking || isListening) {
+  const clearListeningTimers = useCallback(() => {
+    if (flushTimerRef.current) {
+      clearTimeout(flushTimerRef.current)
+      flushTimerRef.current = null
+    }
+    if (resetTimerRef.current) {
+      clearInterval(resetTimerRef.current)
+      resetTimerRef.current = null
+    }
+  }, [])
+
+  const flushTranscriptBuffer = useCallback(() => {
+    const buffered = transcriptBufferRef.current.trim()
+    transcriptBufferRef.current = ''
+
+    if (!buffered || isAsking) {
+      return
+    }
+
+    setVoiceStatus('Sending your question...')
+    void sendPatientMessage(buffered)
+  }, [isAsking, sendPatientMessage])
+
+  const scheduleFlushAfterSilence = useCallback(() => {
+    if (flushTimerRef.current) {
+      clearTimeout(flushTimerRef.current)
+    }
+    flushTimerRef.current = setTimeout(() => {
+      flushTranscriptBuffer()
+    }, 1500)
+  }, [flushTranscriptBuffer])
+
+  const startListeningWindowReset = useCallback(() => {
+    if (resetTimerRef.current) {
+      clearInterval(resetTimerRef.current)
+    }
+
+    resetTimerRef.current = setInterval(() => {
+      flushTranscriptBuffer()
+      if (recognitionRef.current && shouldRestartRef.current && !pauseRestartRef.current) {
+        try {
+          recognitionRef.current.stop()
+        } catch (error) {
+          console.error(error)
+        }
+      }
+    }, 10000)
+  }, [flushTranscriptBuffer])
+
+  const startVoiceInput = useCallback(async () => {
+    if (!voiceSupported || isAsking || isListening || !alwaysListeningEnabled) {
       return
     }
 
@@ -183,7 +251,7 @@ function App() {
     if (!recognitionRef.current) {
       const recognition = new SpeechRecognition()
       recognition.lang = 'en-US'
-      recognition.continuous = false
+      recognition.continuous = true
       recognition.interimResults = true
 
       recognition.onstart = () => {
@@ -193,6 +261,17 @@ function App() {
 
       recognition.onend = () => {
         setIsListening(false)
+        if (shouldRestartRef.current && !isAsking && !pauseRestartRef.current) {
+          setTimeout(() => {
+            if (shouldRestartRef.current && !isAsking && !pauseRestartRef.current) {
+              try {
+                recognition.start()
+              } catch (error) {
+                console.error(error)
+              }
+            }
+          }, 200)
+        }
       }
 
       recognition.onerror = (event) => {
@@ -201,34 +280,48 @@ function App() {
       }
 
       recognition.onresult = (event) => {
-        let transcript = ''
         for (let i = event.resultIndex; i < event.results.length; i += 1) {
-          transcript += event.results[i][0].transcript
-        }
-
-        const cleaned = transcript.trim()
-        if (!cleaned) {
-          return
-        }
-
-        const latest = event.results[event.results.length - 1]
-        if (latest.isFinal) {
-          setVoiceStatus('Sending your question...')
-          sendPatientMessage(cleaned)
+          const result = event.results[i]
+          if (result.isFinal) {
+            transcriptBufferRef.current += ` ${result[0].transcript}`
+            scheduleFlushAfterSilence()
+          }
         }
       }
 
       recognitionRef.current = recognition
     }
 
+    shouldRestartRef.current = true
     recognitionRef.current.start()
-  }
+    startListeningWindowReset()
+  }, [
+    alwaysListeningEnabled,
+    isAsking,
+    isListening,
+    voiceSupported,
+    scheduleFlushAfterSilence,
+    startListeningWindowReset,
+  ])
 
   function stopVoiceInput() {
+    shouldRestartRef.current = false
+    flushTranscriptBuffer()
+    clearListeningTimers()
     if (recognitionRef.current) {
       recognitionRef.current.stop()
       setVoiceStatus('Voice input stopped.')
     }
+  }
+
+  function toggleAlwaysListening() {
+    setAlwaysListeningEnabled((prev) => {
+      const next = !prev
+      if (!next) {
+        stopVoiceInput()
+      }
+      return next
+    })
   }
 
   async function loadCaregiverTasks() {
@@ -302,24 +395,12 @@ function App() {
 
     const hasVoiceInput = Boolean(window.SpeechRecognition || window.webkitSpeechRecognition)
     setVoiceSupported(hasVoiceInput)
-  }, [])
-
-  useEffect(() => {
-    if (typeof window === 'undefined') {
-      return
-    }
-
-    const alreadyPlayed = window.sessionStorage.getItem(INTRO_SESSION_KEY) === '1'
-    if (alreadyPlayed) {
-      return
-    }
-
-    window.sessionStorage.setItem(INTRO_SESSION_KEY, '1')
-    void speakAssistantResponse(INTRO_MESSAGE)
-  }, [speakAssistantResponse])
+  }, [clearListeningTimers])
 
   useEffect(() => {
     return () => {
+      shouldRestartRef.current = false
+      clearListeningTimers()
       if (recognitionRef.current) {
         recognitionRef.current.stop()
       }
@@ -327,14 +408,49 @@ function App() {
         activeAudioRef.current.pause()
       }
     }
-  }, [])
+  }, [clearListeningTimers])
+
+  useEffect(() => {
+    if (activeView === 'patient' && alwaysListeningEnabled && voiceSupported && !isAsking) {
+      void startVoiceInput()
+    }
+    if (!alwaysListeningEnabled) {
+      shouldRestartRef.current = false
+      flushTranscriptBuffer()
+      clearListeningTimers()
+      recognitionRef.current?.stop()
+      setVoiceStatus('Voice input stopped.')
+    }
+  }, [activeView, alwaysListeningEnabled, voiceSupported, isAsking, startVoiceInput, flushTranscriptBuffer, clearListeningTimers])
 
   function renderIntentData(message) {
     if (!message || !message.data) {
       return null
     }
 
+    if (message.intent === 'memory_recall' && message.data.person) {
+      const person = message.data.person
+      return (
+        <section className="detail-card intent-person">
+          <p className="intent-kicker">Person Memory</p>
+          <h3>{person.name || 'Person'}</h3>
+          <div className="person-card">
+            {person.image_url ? (
+              <img className="person-photo" src={`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}${person.image_url}`} alt={person.name || 'Person'} />
+            ) : null}
+            <div>
+              {person.relationship ? <p className="detail-subtitle">{person.relationship}</p> : null}
+              {person.notes ? <p>{person.notes}</p> : null}
+            </div>
+          </div>
+        </section>
+      )
+    }
+
     if (message.intent === 'routine' && Array.isArray(message.data.steps) && message.data.steps.length > 0) {
+      const period = String(message.data.period || '').toLowerCase()
+      const brushingEnabled = period === 'morning' || period === 'evening'
+
       return (
         <section className="detail-card intent-routine">
           <p className="intent-kicker">Routine Assistant</p>
@@ -343,9 +459,26 @@ function App() {
             {message.data.current_time || 'Current time'} • {message.data.period || 'Current period'}
           </p>
           <ol className="step-list">
-            {message.data.steps.map((step, index) => (
-              <li key={`${step}-${index}`}>{step}</li>
-            ))}
+            {message.data.steps.map((step, index) => {
+              const isBrushingStep = /brush(ing)? your teeth/i.test(step)
+              return (
+                <li key={`${step}-${index}`}>
+                  <div className="step-row">
+                    <span>{step}</span>
+                    {brushingEnabled && isBrushingStep ? (
+                      <a
+                        className="step-action-link"
+                        href={BRUSHING_VIDEO_URL}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        Watch guide
+                      </a>
+                    ) : null}
+                  </div>
+                </li>
+              )
+            })}
           </ol>
         </section>
       )
@@ -459,15 +592,6 @@ function App() {
           </button>
         </div>
 
-        <div className="rail-card">
-          <p className="rail-title">Quick Guidance</p>
-          <ul>
-            <li>Use one-tap cards for faster support.</li>
-            <li>Keep messages short and clear.</li>
-            <li>Use caregiver mode to manage tasks.</li>
-          </ul>
-        </div>
-
         <div className="rail-status">
           <span className="live-dot">Live</span>
           <span>Backend connected on 8000</span>
@@ -483,10 +607,10 @@ function App() {
               <button
                 type="button"
                 className={`voice-btn ${isListening ? 'listening' : ''}`}
-                onClick={isListening ? stopVoiceInput : startVoiceInput}
-                disabled={!voiceSupported || isAsking}
+                onClick={toggleAlwaysListening}
+                disabled={!voiceSupported}
               >
-                {isListening ? 'Stop Mic' : 'Voice In'}
+                {alwaysListeningEnabled ? 'Always Listening: On' : 'Always Listening: Off'}
               </button>
             </div>
             {!voiceSupported ? <p className="soft voice-note">Voice input is not available in this browser.</p> : null}
@@ -498,9 +622,6 @@ function App() {
                 </article>
               ))}
               {isAsking ? <p className="loading">Thinking...</p> : null}
-            </div>
-            <div className="voice-only-note">
-              Speak your question out loud. We use browser voice input and ElevenLabs voice output.
             </div>
           </section>
 

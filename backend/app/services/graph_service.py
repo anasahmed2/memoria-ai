@@ -30,7 +30,14 @@ def intent_node(state: ChatState) -> ChatState:
 def memory_node(state: ChatState) -> ChatState:
     """Node 2a: Handle memory recall."""
     result = recall_person(state["message"])
-    return {**state, "response": result["response"], "raw_data": {"raw": result["raw"]}}
+    return {
+        **state,
+        "response": result["response"],
+        "raw_data": {
+            "raw": result["raw"],
+            "person": result.get("person"),
+        },
+    }
 
 def calming_node(state: ChatState) -> ChatState:
     """Node 2b: Handle calming/distress."""

@@ -7,11 +7,17 @@ It is designed for calm, simple patient interactions and caregiver task manageme
 
 - Patient can ask for:
 	- routine guidance
+	- specific period routines (morning / afternoon / evening / night)
 	- tasks and reminders
 	- memory recall about known people
 	- calming support
 	- current location
 	- current weather and dress guidance
+- Patient routine card includes:
+	- brushing-teeth quick link in morning/evening steps
+- Memory recall card includes:
+	- person photo (served from backend photos)
+	- relationship + notes
 - Caregiver can:
 	- create tasks
 	- mark tasks complete
@@ -135,9 +141,14 @@ frontend/
 
 - `GET /health`
 
+### Static Assets
+
+- `GET /photos/{filename}`
+	- Serves person photos used in memory cards (e.g., Dr. Patel, Madison)
+
 ## Environment Variables
 
-Create `backend/.env` (you can copy from `backend/.env.example`):
+Create `backend/.env`:
 
 - `OPENROUTER_API_KEY` (required)
 - `ELEVENLABS_API_KEY` (required for voice out)
@@ -147,6 +158,10 @@ Optional voice settings:
 
 - `ELEVENLABS_MODEL_ID`
 - `ELEVENLABS_OUTPUT_FORMAT`
+
+Frontend optional env:
+
+- `VITE_API_BASE_URL` (default is `http://127.0.0.1:8000`)
 
 ## Local Setup
 
@@ -177,6 +192,9 @@ Use short, direct prompts for best intent matching.
 
 - What should I do now?
 - What should I do this morning?
+- What is my morning routine?
+- What is my evening routine?
+- What is my moorning routine?
 - What is my routine right now?
 - What do I do next?
 
@@ -229,3 +247,21 @@ Use short, direct prompts for best intent matching.
 - Browser microphone and location permissions must be allowed for full voice/location features.
 - Voice out depends on ElevenLabs account status and quota.
 - Weather/location external APIs are free and do not require API keys in this setup.
+- Current known people are managed in `backend/data/people.json` and photos in `backend/photos`.
+- For person photos, `image` in `people.json` must match the filename in `backend/photos` exactly.
+
+## Pre-Merge Quick Check
+
+Run these before merging to `main`:
+
+1. Backend starts cleanly:
+	- `cd backend`
+	- `uvicorn app.main:app --reload --port 8000`
+2. Frontend builds:
+	- `cd frontend`
+	- `npm run build`
+3. Smoke-test key prompts in patient mode:
+	- "What should I do now?"
+	- "What is my morning routine?"
+	- "Who is Dr. Patel?"
+	- "What's the weather?"
