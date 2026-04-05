@@ -4,6 +4,8 @@ import {
   createCaregiverTask,
   deleteCaregiverTask,
   fetchCaregiverTasks,
+  fetchLocationContext,
+  getBrowserCoordinates,
   markTaskComplete,
 } from './api'
 import './App.css'
@@ -111,6 +113,9 @@ function App() {
       return
     }
 
+    const needsLocationContext = /(where am i|location|weather|temperature|rain|forecast|outside|jacket)/i.test(trimmed)
+    let context = null
+
     setIsAsking(true)
     setChatHistory((prev) => [
       ...prev,
@@ -122,7 +127,19 @@ function App() {
     ])
 
     try {
-      const result = await askChat(trimmed)
+      if (needsLocationContext) {
+        setVoiceStatus('Getting your location...')
+        try {
+          const coords = await getBrowserCoordinates()
+          context = await fetchLocationContext(coords.latitude, coords.longitude)
+          setVoiceStatus('Location captured. Preparing your answer...')
+        } catch (geoError) {
+          console.error(geoError)
+          setVoiceStatus('Could not access browser location. Continuing with limited context.')
+        }
+      }
+
+      const result = await askChat(trimmed, context)
       setChatHistory((prev) => [
         ...prev,
         {
@@ -374,9 +391,30 @@ function App() {
           <p className="intent-kicker">Location Support</p>
           <h3>Location</h3>
           <p className="location-line">You are in {message.data.location}.</p>
+          {message.data.latitude && message.data.longitude ? (
+            <p className="detail-subtitle">
+              Lat {Number(message.data.latitude).toFixed(3)} • Lon {Number(message.data.longitude).toFixed(3)}
+            </p>
+          ) : null}
           <span className={`safe-badge ${message.data.safe ? 'safe' : 'alert'}`}>
             {message.data.safe ? 'Safe location' : 'Needs attention'}
           </span>
+        </section>
+      )
+    }
+
+    if (message.intent === 'weather') {
+      return (
+        <section className="detail-card intent-weather">
+          <p className="intent-kicker">Weather Support</p>
+          <h3>Current Weather</h3>
+          <p className="detail-subtitle">{message.data.location || 'Your area'}</p>
+          <p>
+            {message.data.temperature_c !== null && message.data.temperature_c !== undefined
+              ? `${message.data.temperature_c}°C • ${message.data.weather || 'current conditions'}`
+              : message.data.weather || 'Weather unavailable'}
+          </p>
+          {message.data.dress_tip ? <p className="soft">{message.data.dress_tip}</p> : null}
         </section>
       )
     }

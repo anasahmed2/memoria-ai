@@ -21,10 +21,41 @@ async function request(path, options = {}) {
   return response.json()
 }
 
-export function askChat(message) {
+export function askChat(message, context = null) {
   return request('/chat/', {
     method: 'POST',
-    body: JSON.stringify({ message }),
+    body: JSON.stringify({ message, context }),
+  })
+}
+
+export function getBrowserCoordinates() {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) {
+      reject(new Error('Geolocation is not supported in this browser.'))
+      return
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        resolve({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+        })
+      },
+      (error) => reject(error),
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 300000,
+      },
+    )
+  })
+}
+
+export function fetchLocationContext(latitude, longitude) {
+  return request('/location/context', {
+    method: 'POST',
+    body: JSON.stringify({ latitude, longitude }),
   })
 }
 
