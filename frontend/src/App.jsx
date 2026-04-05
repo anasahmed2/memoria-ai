@@ -427,6 +427,25 @@ function App() {
       return null
     }
 
+    if (message.intent === 'memory_recall' && message.data.person) {
+      const person = message.data.person
+      return (
+        <section className="detail-card intent-person">
+          <p className="intent-kicker">Person Memory</p>
+          <h3>{person.name || 'Person'}</h3>
+          <div className="person-card">
+            {person.image_url ? (
+              <img className="person-photo" src={`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}${person.image_url}`} alt={person.name || 'Person'} />
+            ) : null}
+            <div>
+              {person.relationship ? <p className="detail-subtitle">{person.relationship}</p> : null}
+              {person.notes ? <p>{person.notes}</p> : null}
+            </div>
+          </div>
+        </section>
+      )
+    }
+
     if (message.intent === 'routine' && Array.isArray(message.data.steps) && message.data.steps.length > 0) {
       return (
         <section className="detail-card intent-routine">

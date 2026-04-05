@@ -1,11 +1,17 @@
+from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from dotenv import load_dotenv
 from app.routers import memory, calming, routine, chat, tasks, voice, location
 
 load_dotenv()
 
 app = FastAPI(title="Memoria AI Backend", version="0.1.0")
+
+photos_path = Path(__file__).resolve().parents[1] / "photos"
+app.mount("/photos", StaticFiles(directory=photos_path), name="photos")
 
 app.add_middleware(
     CORSMiddleware,

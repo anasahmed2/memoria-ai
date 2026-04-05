@@ -216,6 +216,23 @@
   padding: 0.95rem;
 }
 
+.person-card {
+  display: grid;
+  grid-template-columns: 128px 1fr;
+  gap: 1rem;
+  align-items: start;
+}
+
+.person-photo {
+  width: 128px;
+  height: 128px;
+  border-radius: 22px;
+  object-fit: cover;
+  border: 1px solid rgba(22, 35, 51, 0.12);
+  box-shadow: 0 12px 28px rgba(22, 35, 51, 0.12);
+  background: #f5f6f8;
+}
+
 .panel h2,
 .detail-card h3 {
   margin: 0.25rem 0 0;
