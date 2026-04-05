@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   askChat,
   createCaregiverTask,
@@ -8,14 +8,9 @@ import {
 } from './api'
 import './App.css'
 
-const quickActions = [
-  { key: 'routine', label: 'What should I do now?', prompt: 'What should I do now?' },
-  { key: 'calendar', label: 'What do I have today?', prompt: 'What do I have today?' },
-  { key: 'location', label: 'Where am I?', prompt: 'Where am I?' },
-  { key: 'calming', label: 'Need help', prompt: "I'm scared and I need help." },
-]
-
 const today = new Date().toISOString().slice(0, 10)
+const INTRO_MESSAGE = 'Hello, I am your personal caregiving AI assistant.'
+const INTRO_SESSION_KEY = 'memoria_intro_played'
 
 function App() {
   const [activeView, setActiveView] = useState('patient')
@@ -26,7 +21,7 @@ function App() {
   const [chatHistory, setChatHistory] = useState([
     {
       role: 'assistant',
-      text: "Hi, I'm here to help you through your day. Tap a card or ask me anything.",
+      text: INTRO_MESSAGE,
       intent: 'general',
       data: {},
       timestamp: new Date().toISOString(),
@@ -64,7 +59,7 @@ function App() {
     [caregiverTasks],
   )
 
-  function playAssistantAudio(audioBase64, audioMime = 'audio/mpeg') {
+  const playAssistantAudio = useCallback((audioBase64, audioMime = 'audio/mpeg') => {
     if (!audioBase64) {
       return
     }
@@ -85,9 +80,9 @@ function App() {
       console.error(error)
       setVoiceStatus('The response is ready, but this browser blocked autoplay.')
     })
-  }
+  }, [])
 
-  async function speakAssistantResponse(responseText) {
+  const speakAssistantResponse = useCallback(async (responseText) => {
     try {
       const result = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/voice/speak`, {
         method: 'POST',
@@ -108,7 +103,7 @@ function App() {
       console.error(error)
       setVoiceStatus('Assistant reply is visible, but audio could not be generated.')
     }
-  }
+  }, [playAssistantAudio])
 
   async function sendPatientMessage(message) {
     const trimmed = message.trim()
@@ -293,6 +288,20 @@ function App() {
   }, [])
 
   useEffect(() => {
+    if (typeof window === 'undefined') {
+      return
+    }
+
+    const alreadyPlayed = window.sessionStorage.getItem(INTRO_SESSION_KEY) === '1'
+    if (alreadyPlayed) {
+      return
+    }
+
+    window.sessionStorage.setItem(INTRO_SESSION_KEY, '1')
+    void speakAssistantResponse(INTRO_MESSAGE)
+  }, [speakAssistantResponse])
+
+  useEffect(() => {
     return () => {
       if (recognitionRef.current) {
         recognitionRef.current.stop()
@@ -375,6 +384,8 @@ function App() {
     return null
   }
 
+  const intentCard = renderIntentData(latestAssistantMessage)
+
   return (
     <div className="app-shell">
       <div className="mesh" aria-hidden="true" />
@@ -386,6 +397,12 @@ function App() {
           <h1>Harmony Desk</h1>
           <p>Comfort-first interface for daily support.</p>
         </div>
+
+        <section className="rail-card resident-rail-card">
+          <p className="panel-kicker">Resident Snapshot</p>
+          <h2>Bonsoy</h2>
+          <p>You are at home in Vancouver. Everything is okay.</p>
+        </section>
 
         <div className="view-toggle" role="tablist" aria-label="Choose workspace">
           <button
@@ -421,32 +438,6 @@ function App() {
 
       {activeView === 'patient' ? (
         <main className="main patient-layout">
-          <section className="panel hero-panel">
-            <p className="panel-kicker">Resident Snapshot</p>
-            <h2>Bonsoy</h2>
-            <p>You are at home in Vancouver. Everything is okay.</p>
-          </section>
-
-          <section className="panel quick-panel">
-            <p className="panel-kicker">One Tap Prompts</p>
-            <div className="action-grid">
-              {quickActions.map((action, index) => (
-                <button
-                  key={action.key}
-                  className="action-card"
-                  onClick={() => sendPatientMessage(action.prompt)}
-                  type="button"
-                  disabled={isAsking}
-                >
-                  <span className="action-index">{index + 1}</span>
-                  <span>{action.label}</span>
-                </button>
-              ))}
-            </div>
-          </section>
-
-          <section className="panel intent-panel">{renderIntentData(latestAssistantMessage)}</section>
-
           <section className="panel chat-panel">
             <p className="panel-kicker">Conversation</p>
             <h2>Assistant</h2>
@@ -458,9 +449,6 @@ function App() {
                 disabled={!voiceSupported || isAsking}
               >
                 {isListening ? 'Stop Mic' : 'Voice In'}
-              </button>
-              <button type="button" className="voice-stop" onClick={() => activeAudioRef.current?.pause()}>
-                Stop Voice Out
               </button>
             </div>
             {!voiceSupported ? <p className="soft voice-note">Voice input is not available in this browser.</p> : null}
@@ -477,6 +465,8 @@ function App() {
               Speak your question out loud. We use browser voice input and ElevenLabs voice output.
             </div>
           </section>
+
+          {intentCard ? <section className="panel intent-panel">{intentCard}</section> : null}
         </main>
       ) : (
         <main className="main caregiver-layout">

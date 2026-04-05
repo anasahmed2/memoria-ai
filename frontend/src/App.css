@@ -114,6 +114,15 @@
   background: rgba(248, 252, 255, 0.92);
 }
 
+.resident-rail-card h2 {
+  margin: 0.35rem 0 0;
+}
+
+.resident-rail-card p {
+  margin: 0.5rem 0 0;
+  color: var(--ink-soft);
+}
+
 .rail-title {
   margin: 0;
   font-weight: 700;
@@ -167,26 +176,18 @@
 
 .patient-layout {
   display: grid;
-  grid-template-columns: repeat(12, minmax(0, 1fr));
+  grid-template-columns: 1fr;
   gap: 0.85rem;
 }
 
-.hero-panel {
-  grid-column: span 4;
-}
-
-.quick-panel {
-  grid-column: span 8;
-}
-
 .intent-panel {
-  grid-column: span 5;
+  grid-column: span 1;
   display: grid;
   align-content: start;
 }
 
 .chat-panel {
-  grid-column: span 7;
+  grid-column: span 1;
 }
 
 .caregiver-layout {
