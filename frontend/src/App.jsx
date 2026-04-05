@@ -50,6 +50,16 @@ function App() {
     return null
   }, [chatHistory])
 
+  const pendingTasks = useMemo(
+    () => caregiverTasks.filter((task) => !task.completed).length,
+    [caregiverTasks],
+  )
+
+  const completedTasks = useMemo(
+    () => caregiverTasks.filter((task) => task.completed).length,
+    [caregiverTasks],
+  )
+
   async function sendPatientMessage(message) {
     const trimmed = message.trim()
     if (!trimmed || isAsking) {
@@ -166,7 +176,8 @@ function App() {
 
     if (message.intent === 'routine' && Array.isArray(message.data.steps) && message.data.steps.length > 0) {
       return (
-        <section className="detail-card">
+        <section className="detail-card intent-routine">
+          <p className="intent-kicker">Routine Assistant</p>
           <h3>Routine Right Now</h3>
           <p className="detail-subtitle">
             {message.data.current_time || 'Current time'} • {message.data.period || 'Current period'}
@@ -184,7 +195,8 @@ function App() {
       const current = message.data.current_tasks || []
       const upcoming = message.data.upcoming_tasks || []
       return (
-        <section className="detail-card">
+        <section className="detail-card intent-calendar">
+          <p className="intent-kicker">Task Assistant</p>
           <h3>Today&apos;s Tasks</h3>
           <p className="detail-subtitle">{message.data.current_time || ''}</p>
           <div className="calendar-grid">
@@ -215,7 +227,8 @@ function App() {
 
     if (message.intent === 'location' && message.data.location) {
       return (
-        <section className="detail-card">
+        <section className="detail-card intent-location">
+          <p className="intent-kicker">Location Support</p>
           <h3>Location</h3>
           <p className="location-line">You are in {message.data.location}.</p>
           <span className={`safe-badge ${message.data.safe ? 'safe' : 'alert'}`}>
@@ -229,50 +242,59 @@ function App() {
   }
 
   return (
-    <div className={`app-shell ${activeView === 'patient' ? 'theme-patient' : 'theme-caregiver'}`}>
-      <div className="ambient ambient-one" aria-hidden="true" />
-      <div className="ambient ambient-two" aria-hidden="true" />
-      <div className="ambient ambient-three" aria-hidden="true" />
+    <div className="app-shell">
+      <div className="mesh" aria-hidden="true" />
+      <div className="grain" aria-hidden="true" />
 
-      <header className="top-bar">
-        <div className="top-title-group">
-          <p className="eyebrow">Memoria AI</p>
-          <h1>Morning Companion</h1>
-          <p className="headline-support">A calm, visual copilot for daily routines and caregiver coordination.</p>
+      <aside className="rail">
+        <div className="brand">
+          <p className="brand-kicker">Memoria AI</p>
+          <h1>Harmony Desk</h1>
+          <p>Comfort-first interface for daily support.</p>
         </div>
-        <div className="top-actions">
+
+        <div className="view-toggle" role="tablist" aria-label="Choose workspace">
+          <button
+            className={activeView === 'patient' ? 'active' : ''}
+            onClick={() => setActiveView('patient')}
+            type="button"
+          >
+            Patient Studio
+          </button>
+          <button
+            className={activeView === 'caregiver' ? 'active' : ''}
+            onClick={() => setActiveView('caregiver')}
+            type="button"
+          >
+            Caregiver Command
+          </button>
+        </div>
+
+        <div className="rail-card">
+          <p className="rail-title">Quick Guidance</p>
+          <ul>
+            <li>Use one-tap cards for faster support.</li>
+            <li>Keep messages short and clear.</li>
+            <li>Use caregiver mode to manage tasks.</li>
+          </ul>
+        </div>
+
+        <div className="rail-status">
           <span className="live-dot">Live</span>
-          <div className="view-toggle" role="tablist" aria-label="Choose workspace">
-            <button
-              className={activeView === 'patient' ? 'active' : ''}
-              onClick={() => setActiveView('patient')}
-              type="button"
-            >
-              Patient View
-            </button>
-            <button
-              className={activeView === 'caregiver' ? 'active' : ''}
-              onClick={() => setActiveView('caregiver')}
-              type="button"
-            >
-              Caregiver Dashboard
-            </button>
-          </div>
+          <span>Backend connected on 8000</span>
         </div>
-      </header>
+      </aside>
 
       {activeView === 'patient' ? (
-        <main className="patient-grid content-frame">
-          <section className="panel profile-panel">
-            <p className="panel-kicker">Resident Profile</p>
+        <main className="main patient-layout">
+          <section className="panel hero-panel">
+            <p className="panel-kicker">Resident Snapshot</p>
             <h2>Bonsoy</h2>
-            <p>You are at home in Vancouver.</p>
-            <p className="soft">Tap one option below or ask a question.</p>
+            <p>You are at home in Vancouver. Everything is okay.</p>
           </section>
 
-          <section className="panel quick-actions">
-            <p className="panel-kicker">One-Tap Shortcuts</p>
-            <h2>Quick Actions</h2>
+          <section className="panel quick-panel">
+            <p className="panel-kicker">One Tap Prompts</p>
             <div className="action-grid">
               {quickActions.map((action, index) => (
                 <button
@@ -282,12 +304,14 @@ function App() {
                   type="button"
                   disabled={isAsking}
                 >
-                  <span className="action-index">0{index + 1}</span>
+                  <span className="action-index">{index + 1}</span>
                   <span>{action.label}</span>
                 </button>
               ))}
             </div>
           </section>
+
+          <section className="panel intent-panel">{renderIntentData(latestAssistantMessage)}</section>
 
           <section className="panel chat-panel">
             <p className="panel-kicker">Conversation</p>
@@ -320,12 +344,31 @@ function App() {
               <button type="submit" disabled={isAsking}>Send</button>
             </form>
           </section>
-
-          <div className="detail-zone">{renderIntentData(latestAssistantMessage)}</div>
         </main>
       ) : (
-        <main className="caregiver-grid content-frame">
-          <section className="panel caregiver-form-panel">
+        <main className="main caregiver-layout">
+          <section className="panel stats-panel">
+            <div>
+              <p className="panel-kicker">Task Metrics</p>
+              <h2>Caregiver Overview</h2>
+            </div>
+            <div className="stats-grid">
+              <article>
+                <span>Pending</span>
+                <strong>{pendingTasks}</strong>
+              </article>
+              <article>
+                <span>Completed</span>
+                <strong>{completedTasks}</strong>
+              </article>
+              <article>
+                <span>Total</span>
+                <strong>{caregiverTasks.length}</strong>
+              </article>
+            </div>
+          </section>
+
+          <section className="panel planner-panel">
             <p className="panel-kicker">Planner</p>
             <h2>Add Task</h2>
             <form className="caregiver-form" onSubmit={onCreateTask}>
@@ -390,10 +433,12 @@ function App() {
             </form>
           </section>
 
-          <section className="panel caregiver-list-panel">
-            <p className="panel-kicker">Task Board</p>
+          <section className="panel board-panel">
             <div className="caregiver-list-header">
-              <h2>All Tasks</h2>
+              <div>
+                <p className="panel-kicker">Task Board</p>
+                <h2>All Tasks</h2>
+              </div>
               <button type="button" onClick={loadCaregiverTasks} disabled={isCaregiverLoading}>
                 Refresh
               </button>
