@@ -6,6 +6,8 @@ from app.services.calming_service import get_calming_response
 from app.services.routine_service import get_routine_response
 from app.services.location_service import get_location_response
 from app.services.llm_service import ask_llm
+from app.services.task_service import get_task_response
+
 
 # --- State Definition ---
 # This is the data that flows through the entire graph
@@ -78,6 +80,17 @@ def route_intent(state: ChatState) -> str:
     }
     return routes.get(state["intent"], "general")
 
+def calendar_node(state: ChatState) -> ChatState:
+    result = get_task_response(state["message"])
+    return {
+        **state,
+        "response": result["response"],
+        "raw_data": {
+            "current_tasks": result["current_tasks"],
+            "upcoming_tasks": result["upcoming_tasks"]
+        }
+    }
+
 # --- Build the Graph ---
 
 def build_graph():
@@ -90,7 +103,7 @@ def build_graph():
     graph.add_node("routine", routine_node)
     graph.add_node("location", location_node)
     graph.add_node("general", general_node)
-
+    graph.add_node("calendar", calendar_node)
     # Entry point
     graph.set_entry_point("intent")
 
@@ -103,7 +116,8 @@ def build_graph():
             "calming": "calming",
             "routine": "routine",
             "location": "location",
-            "general": "general"
+            "general": "general",
+            "calendar": "calendar"
         }
     )
 
@@ -113,6 +127,7 @@ def build_graph():
     graph.add_edge("routine", END)
     graph.add_edge("location", END)
     graph.add_edge("general", END)
+    graph.add_edge("calendar", END)
 
     return graph.compile()
 

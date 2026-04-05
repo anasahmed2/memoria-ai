@@ -7,6 +7,7 @@ Classify the user's message into EXACTLY one of these intents:
 - routine           → asking what to do, what time it is, daily schedule
 - calming           → expressing fear, confusion, being lost or scared
 - location          → asking where they are
+- calendar          → asking about tasks, appointments, schedule, what's planned, reminders
 - general           → anything else
 
 Reply with ONLY the intent label, nothing else.
@@ -15,10 +16,14 @@ Examples:
 "I'm scared" → calming
 "What should I do now?" → routine
 "Where am I?" → location
+"What do I have today?" → calendar
+"Do I have any appointments?" → calendar
+"What's on my schedule?" → calendar
+"Did I take my medication?" → calendar
 "Thank you" → general
 """
 
-VALID_INTENTS = ["memory_recall", "routine", "calming", "location", "general"]
+VALID_INTENTS = ["memory_recall", "routine", "calming", "location", "calendar", "general"]
 
 def classify_intent(message: str) -> str:
     """Classify the user's message into an intent."""
@@ -26,7 +31,6 @@ def classify_intent(message: str) -> str:
         system_prompt=INTENT_SYSTEM_PROMPT,
         user_message=message
     )
-    # Clean up and validate the response
     intent = result.strip().lower()
     if intent not in VALID_INTENTS:
         return "general"

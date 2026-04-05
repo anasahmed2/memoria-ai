@@ -1,0 +1,29 @@
+[
+  {
+    "id": "1",
+    "title": "Take morning medication",
+    "time": "09:00",
+    "date": "2026-04-06",
+    "category": "medication",
+    "notes": "Blue pill on the kitchen counter",
+    "completed": false
+  },
+  {
+    "id": "2",
+    "title": "Call Sarah",
+    "time": "14:00",
+    "date": "2026-04-06",
+    "category": "social",
+    "notes": "She's expecting your call",
+    "completed": false
+  },
+  {
+    "id": "3",
+    "title": "Doctor appointment",
+    "time": "18:00",
+    "date": "2026-04-06",
+    "category": "appointment",
+    "notes": "Dr. Patel at Main Street Clinic",
+    "completed": false
+  }
+]
