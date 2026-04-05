@@ -76,6 +76,7 @@ def route_intent(state: ChatState) -> str:
         "calming": "calming",
         "routine": "routine",
         "location": "location",
+        "calendar": "calendar",
         "general": "general"
     }
     return routes.get(state["intent"], "general")

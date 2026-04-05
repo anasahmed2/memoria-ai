@@ -25,5 +25,14 @@
     "category": "appointment",
     "notes": "Dr. Patel at Main Street Clinic",
     "completed": false
+  },
+  {
+    "id": "52edc770-28b8-40a3-baa7-cfe46fb24784",
+    "title": "Walk",
+    "time": "22:00",
+    "date": "2026-04-05",
+    "category": "appointment",
+    "notes": "Go outside and go on a walk",
+    "completed": false
   }
 ]
