@@ -229,42 +229,52 @@ function App() {
   }
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell ${activeView === 'patient' ? 'theme-patient' : 'theme-caregiver'}`}>
+      <div className="ambient ambient-one" aria-hidden="true" />
+      <div className="ambient ambient-two" aria-hidden="true" />
+      <div className="ambient ambient-three" aria-hidden="true" />
+
       <header className="top-bar">
-        <div>
+        <div className="top-title-group">
           <p className="eyebrow">Memoria AI</p>
           <h1>Morning Companion</h1>
+          <p className="headline-support">A calm, visual copilot for daily routines and caregiver coordination.</p>
         </div>
-        <div className="view-toggle" role="tablist" aria-label="Choose workspace">
-          <button
-            className={activeView === 'patient' ? 'active' : ''}
-            onClick={() => setActiveView('patient')}
-            type="button"
-          >
-            Patient View
-          </button>
-          <button
-            className={activeView === 'caregiver' ? 'active' : ''}
-            onClick={() => setActiveView('caregiver')}
-            type="button"
-          >
-            Caregiver Dashboard
-          </button>
+        <div className="top-actions">
+          <span className="live-dot">Live</span>
+          <div className="view-toggle" role="tablist" aria-label="Choose workspace">
+            <button
+              className={activeView === 'patient' ? 'active' : ''}
+              onClick={() => setActiveView('patient')}
+              type="button"
+            >
+              Patient View
+            </button>
+            <button
+              className={activeView === 'caregiver' ? 'active' : ''}
+              onClick={() => setActiveView('caregiver')}
+              type="button"
+            >
+              Caregiver Dashboard
+            </button>
+          </div>
         </div>
       </header>
 
       {activeView === 'patient' ? (
-        <main className="patient-grid">
+        <main className="patient-grid content-frame">
           <section className="panel profile-panel">
+            <p className="panel-kicker">Resident Profile</p>
             <h2>Bonsoy</h2>
-            <p>You are at your home in Vancouver.</p>
+            <p>You are at home in Vancouver.</p>
             <p className="soft">Tap one option below or ask a question.</p>
           </section>
 
           <section className="panel quick-actions">
+            <p className="panel-kicker">One-Tap Shortcuts</p>
             <h2>Quick Actions</h2>
             <div className="action-grid">
-              {quickActions.map((action) => (
+              {quickActions.map((action, index) => (
                 <button
                   key={action.key}
                   className="action-card"
@@ -272,13 +282,15 @@ function App() {
                   type="button"
                   disabled={isAsking}
                 >
-                  {action.label}
+                  <span className="action-index">0{index + 1}</span>
+                  <span>{action.label}</span>
                 </button>
               ))}
             </div>
           </section>
 
           <section className="panel chat-panel">
+            <p className="panel-kicker">Conversation</p>
             <h2>Assistant</h2>
             <div className="chat-stream" aria-live="polite">
               {chatHistory.map((entry, index) => (
@@ -309,11 +321,12 @@ function App() {
             </form>
           </section>
 
-          {renderIntentData(latestAssistantMessage)}
+          <div className="detail-zone">{renderIntentData(latestAssistantMessage)}</div>
         </main>
       ) : (
-        <main className="caregiver-grid">
+        <main className="caregiver-grid content-frame">
           <section className="panel caregiver-form-panel">
+            <p className="panel-kicker">Planner</p>
             <h2>Add Task</h2>
             <form className="caregiver-form" onSubmit={onCreateTask}>
               <label>
@@ -378,6 +391,7 @@ function App() {
           </section>
 
           <section className="panel caregiver-list-panel">
+            <p className="panel-kicker">Task Board</p>
             <div className="caregiver-list-header">
               <h2>All Tasks</h2>
               <button type="button" onClick={loadCaregiverTasks} disabled={isCaregiverLoading}>
