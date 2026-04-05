@@ -28,6 +28,23 @@ export function askChat(message) {
   })
 }
 
+export async function sendVoiceChat(audioBlob) {
+  const response = await fetch(`${API_BASE_URL}/voice/chat`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': audioBlob.type || 'audio/webm',
+    },
+    body: audioBlob,
+  })
+
+  if (!response.ok) {
+    const text = await response.text()
+    throw new Error(text || `Voice request failed: ${response.status}`)
+  }
+
+  return response.json()
+}
+
 export function fetchCaregiverTasks() {
   return request('/caregiver/tasks')
 }

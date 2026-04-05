@@ -4,42 +4,62 @@ This is a React + Vite frontend for the Memoria AI backend.
 
 ## What It Includes
 
-- Patient view with large quick-action buttons and simple chat
+- Patient view with large quick-action buttons and voice-first interaction
 - Single patient API entrypoint via POST /chat/
 - Intent-aware detail cards for routine, calendar, and location responses
 - Caregiver dashboard for task CRUD via /caregiver/tasks endpoints
-- Voice In (speech-to-text) for patient questions
-- Voice Out (text-to-speech) for assistant replies
+- Voice In using browser speech recognition
+- Voice Out using ElevenLabs through the backend
 - Voice-only patient flow, with no typed text box in the patient view
+
+## Current Voice Mode
+
+- Voice In: browser Web Speech API (`SpeechRecognition` / `webkitSpeechRecognition`)
+- Voice Out: backend ElevenLabs endpoint (`POST /voice/speak`)
+- This means you only need ElevenLabs credits for the active voice flow.
 
 ## Voice Tech Stack
 
-- Browser Web Speech API for Voice In:
-	- `SpeechRecognition` / `webkitSpeechRecognition`
-- Browser Speech Synthesis API for Voice Out:
-	- `speechSynthesis` + `SpeechSynthesisUtterance`
-- No extra npm package needed for voice features
+- Frontend captures speech with browser speech recognition
+- Backend handles chat intent and response generation as usual
+- Backend generates speech with ElevenLabs
+- Frontend plays the returned MP3 response
+
+## Accounts You Need
+
+You need to sign up for:
+
+1. ElevenLabs, for natural voice output.
+
+Then add the keys to `backend/.env`:
+
+- `ELEVENLABS_API_KEY`
+- `ELEVENLABS_VOICE_ID`
+
+You can copy the template from `backend/.env.example`.
 
 ## Voice Flow
 
 1. Patient clicks `Voice In` in the chat panel.
 2. Browser listens and transcribes speech.
-3. Final transcript is sent to `POST /chat/`.
-4. Backend returns the existing generated response.
-5. Frontend renders the response and reads it aloud if `Voice Out` is enabled.
-6. The patient view does not expose a text entry box; it is voice-first only.
+3. Transcript text is sent to `POST /chat/`.
+4. Backend processes intent through the existing LangGraph pipeline.
+5. Frontend requests speech audio from `POST /voice/speak`.
+6. Backend generates ElevenLabs audio for the response.
+7. Frontend shows the response in chat and plays the audio.
+8. The patient view does not expose a text entry box; it is voice-first only.
 
 ## Voice Quality Notes
 
-- The app prefers a more natural English voice when the browser exposes one.
-- If multiple voices are available, you can manually select one from the Voice dropdown.
-- The browser controls the actual voice list, so the exact female voice depends on the device and installed voices.
+- The actual voice comes from ElevenLabs, so it is much more natural than browser speech synthesis.
+- The specific voice depends on the ElevenLabs voice ID you configure.
+- If you want a more feminine voice, choose a female ElevenLabs voice and paste its voice ID into `backend/.env`.
 
 ## Browser Support Notes
 
 - Best support: latest Chrome or Edge.
-- Some browsers (especially iOS Safari) may have partial support for speech recognition.
-- When unsupported, chat still works in normal text mode.
+- Microphone access requires permission.
+- When unsupported, the patient voice flow will not work, but caregiver mode still works.
 
 ## Backend APIs Used
 

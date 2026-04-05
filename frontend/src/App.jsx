@@ -20,13 +20,9 @@ const today = new Date().toISOString().slice(0, 10)
 function App() {
   const [activeView, setActiveView] = useState('patient')
   const [isAsking, setIsAsking] = useState(false)
-  const [voiceSupported, setVoiceSupported] = useState(false)
-  const [ttsSupported, setTtsSupported] = useState(false)
-  const [availableVoices, setAvailableVoices] = useState([])
-  const [selectedVoiceUri, setSelectedVoiceUri] = useState('auto')
   const [isListening, setIsListening] = useState(false)
-  const [autoSpeak, setAutoSpeak] = useState(true)
   const [voiceStatus, setVoiceStatus] = useState('')
+  const [voiceSupported, setVoiceSupported] = useState(false)
   const [chatHistory, setChatHistory] = useState([
     {
       role: 'assistant',
@@ -47,6 +43,7 @@ function App() {
     notes: '',
   })
   const recognitionRef = useRef(null)
+  const activeAudioRef = useRef(null)
 
   const latestAssistantMessage = useMemo(() => {
     for (let i = chatHistory.length - 1; i >= 0; i -= 1) {
@@ -67,73 +64,50 @@ function App() {
     [caregiverTasks],
   )
 
-  const preferredVoice = useMemo(() => {
-    if (!ttsSupported || typeof window === 'undefined' || !window.speechSynthesis) {
-      return null
-    }
-
-    if (availableVoices.length === 0) {
-      return null
-    }
-
-    if (selectedVoiceUri !== 'auto') {
-      return availableVoices.find((voice) => voice.voiceURI === selectedVoiceUri) || null
-    }
-
-    const femaleHints = [
-      'female',
-      'woman',
-      'girl',
-      'samantha',
-      'victoria',
-      'karen',
-      'zira',
-      'allison',
-      'aria',
-      'eva',
-      'lisa',
-      'fiona',
-      'joanna',
-      'emily',
-      'susan',
-      'maria',
-      'monica',
-      'olivia',
-    ]
-
-    const byLanguage = availableVoices.filter((voice) => voice.lang?.toLowerCase().startsWith('en'))
-    const voicesToSearch = byLanguage.length > 0 ? byLanguage : availableVoices
-
-    const preferred = voicesToSearch.find((voice) => {
-      const name = `${voice.name} ${voice.voiceURI}`.toLowerCase()
-      return femaleHints.some((hint) => name.includes(hint))
-    })
-
-    return preferred || voicesToSearch[0] || availableVoices[0] || null
-  }, [availableVoices, selectedVoiceUri, ttsSupported])
-
-  function stopSpeaking() {
-    if (!ttsSupported || typeof window === 'undefined' || !window.speechSynthesis) {
+  function playAssistantAudio(audioBase64, audioMime = 'audio/mpeg') {
+    if (!audioBase64) {
       return
     }
-    window.speechSynthesis.cancel()
+
+    if (activeAudioRef.current) {
+      activeAudioRef.current.pause()
+      activeAudioRef.current = null
+    }
+
+    const audio = new Audio(`data:${audioMime};base64,${audioBase64}`)
+    activeAudioRef.current = audio
+    audio.onended = () => {
+      if (activeAudioRef.current === audio) {
+        activeAudioRef.current = null
+      }
+    }
+    audio.play().catch((error) => {
+      console.error(error)
+      setVoiceStatus('The response is ready, but this browser blocked autoplay.')
+    })
   }
 
-  function speakText(text) {
-    if (!autoSpeak || !ttsSupported || !text || typeof window === 'undefined' || !window.speechSynthesis) {
-      return
-    }
+  async function speakAssistantResponse(responseText) {
+    try {
+      const result = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'}/voice/speak`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ text: responseText }),
+      })
 
-    window.speechSynthesis.cancel()
-    const utterance = new SpeechSynthesisUtterance(text)
-    utterance.rate = 0.92
-    utterance.pitch = 1.18
-    utterance.volume = 1
-    if (preferredVoice) {
-      utterance.voice = preferredVoice
-      utterance.lang = preferredVoice.lang
+      if (!result.ok) {
+        const text = await result.text()
+        throw new Error(text || `Voice playback request failed: ${result.status}`)
+      }
+
+      const payload = await result.json()
+      playAssistantAudio(payload.audio_base64, payload.audio_mime)
+    } catch (error) {
+      console.error(error)
+      setVoiceStatus('Assistant reply is visible, but audio could not be generated.')
     }
-    window.speechSynthesis.speak(utterance)
   }
 
   async function sendPatientMessage(message) {
@@ -164,7 +138,7 @@ function App() {
           timestamp: new Date().toISOString(),
         },
       ])
-      speakText(result.response)
+      void speakAssistantResponse(result.response)
     } catch (error) {
       setChatHistory((prev) => [
         ...prev,
@@ -176,15 +150,15 @@ function App() {
           timestamp: new Date().toISOString(),
         },
       ])
-      speakText('I could not reach the backend. Please check if the API server is running.')
+      void speakAssistantResponse('I could not reach the backend. Please check if the API server is running.')
       console.error(error)
     } finally {
       setIsAsking(false)
     }
   }
 
-  function startVoiceInput() {
-    if (!voiceSupported || isAsking) {
+  async function startVoiceInput() {
+    if (!voiceSupported || isAsking || isListening) {
       return
     }
 
@@ -315,23 +289,7 @@ function App() {
     }
 
     const hasVoiceInput = Boolean(window.SpeechRecognition || window.webkitSpeechRecognition)
-    const hasVoiceOutput = Boolean(window.speechSynthesis && window.SpeechSynthesisUtterance)
     setVoiceSupported(hasVoiceInput)
-    setTtsSupported(hasVoiceOutput)
-
-    if (hasVoiceOutput) {
-      const loadVoices = () => {
-        const voices = window.speechSynthesis.getVoices() || []
-        setAvailableVoices(voices)
-      }
-
-      loadVoices()
-      window.speechSynthesis.onvoiceschanged = loadVoices
-
-      return () => {
-        window.speechSynthesis.onvoiceschanged = null
-      }
-    }
   }, [])
 
   useEffect(() => {
@@ -339,8 +297,8 @@ function App() {
       if (recognitionRef.current) {
         recognitionRef.current.stop()
       }
-      if (typeof window !== 'undefined' && window.speechSynthesis) {
-        window.speechSynthesis.cancel()
+      if (activeAudioRef.current) {
+        activeAudioRef.current.pause()
       }
     }
   }, [])
@@ -501,40 +459,11 @@ function App() {
               >
                 {isListening ? 'Stop Mic' : 'Voice In'}
               </button>
-              <label className="voice-toggle">
-                <input
-                  type="checkbox"
-                  checked={autoSpeak}
-                  onChange={(event) => setAutoSpeak(event.target.checked)}
-                  disabled={!ttsSupported}
-                />
-                Voice Out
-              </label>
-              <label className="voice-select-label">
-                Voice
-                <select
-                  className="voice-select"
-                  value={selectedVoiceUri}
-                  onChange={(event) => setSelectedVoiceUri(event.target.value)}
-                  disabled={!ttsSupported || availableVoices.length === 0}
-                >
-                  <option value="auto">Auto / most natural</option>
-                  {availableVoices.map((voice) => (
-                    <option key={voice.voiceURI} value={voice.voiceURI}>
-                      {voice.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <button type="button" className="voice-stop" onClick={stopSpeaking} disabled={!ttsSupported}>
-                Stop Voice
+              <button type="button" className="voice-stop" onClick={() => activeAudioRef.current?.pause()}>
+                Stop Voice Out
               </button>
             </div>
-            {!voiceSupported || !ttsSupported ? (
-              <p className="soft voice-note">
-                Voice features are partially unavailable in this browser. Use recent Chrome or Edge for best results.
-              </p>
-            ) : null}
+            {!voiceSupported ? <p className="soft voice-note">Voice input is not available in this browser.</p> : null}
             {voiceStatus ? <p className="soft voice-note">{voiceStatus}</p> : null}
             <div className="chat-stream" aria-live="polite">
               {chatHistory.map((entry, index) => (
@@ -545,7 +474,7 @@ function App() {
               {isAsking ? <p className="loading">Thinking...</p> : null}
             </div>
             <div className="voice-only-note">
-              Speak your question out loud. The assistant will answer here and read it back to you.
+              Speak your question out loud. We use browser voice input and ElevenLabs voice output.
             </div>
           </section>
         </main>

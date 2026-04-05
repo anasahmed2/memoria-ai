@@ -16,5 +16,11 @@
     "relationship": "doctor",
     "notes": "Your family physician. Clinic is on Main Street.",
     "image": "dr_patel.jpg"
+  },
+  {
+  "name": "Madison",
+  "relationship": "best friend",
+  "notes": "Your best friend from childhood. Loves yapping and is super cool.",
+  "image": "Madison.jpg"
   }
 ]
