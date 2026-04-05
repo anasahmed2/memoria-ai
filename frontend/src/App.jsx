@@ -477,7 +477,7 @@ function App() {
       {activeView === 'patient' ? (
         <main className="main patient-layout">
           <section className="panel chat-panel">
-            <p className="panel-kicker">Conversation</p>
+            <p className="panel-kicker">Caretaking</p>
             <h2>Assistant</h2>
             <div className="voice-toolbar">
               <button
