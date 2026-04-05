@@ -4,9 +4,10 @@ from app.services.intent_service import classify_intent
 from app.services.memory_service import recall_person
 from app.services.calming_service import get_calming_response
 from app.services.routine_service import get_routine_response
-from app.services.location_service import get_location_response
+from app.services.location_service import get_location_response, normalize_location_context
 from app.services.llm_service import ask_llm
 from app.services.task_service import get_task_response
+from app.services.weather_service import get_weather_response
 
 
 # --- State Definition ---
@@ -15,6 +16,7 @@ class ChatState(TypedDict):
     message: str        # original user message
     intent: str         # classified intent
     response: str       # final response to return
+    context: dict       # contextual data from frontend (GPS, weather)
     raw_data: dict      # any extra data (steps, location, etc.)
 
 # --- Node Functions ---
@@ -50,11 +52,20 @@ def routine_node(state: ChatState) -> ChatState:
 
 def location_node(state: ChatState) -> ChatState:
     """Node 2d: Handle location questions."""
-    result = get_location_response(state["message"])
+    location_context = state.get("context")
+    result = get_location_response(state["message"], location_context)
     return {
         **state,
         "response": result["response"],
-        "raw_data": {"location": result["location"], "safe": result["safe"]}
+        "raw_data": {
+            "location": result["location"],
+            "safe": result["safe"],
+            "city": result.get("city"),
+            "region": result.get("region"),
+            "country": result.get("country"),
+            "latitude": result.get("latitude"),
+            "longitude": result.get("longitude"),
+        }
     }
 
 def general_node(state: ChatState) -> ChatState:
@@ -69,6 +80,20 @@ def general_node(state: ChatState) -> ChatState:
     )
     return {**state, "response": response, "raw_data": {}}
 
+def weather_node(state: ChatState) -> ChatState:
+    """Node 2f: Handle weather questions."""
+    result = get_weather_response(state.get("context"))
+    return {
+        **state,
+        "response": result["response"],
+        "raw_data": {
+            "location": result["location"],
+            "temperature_c": result["temperature_c"],
+            "weather": result["weather"],
+            "dress_tip": result["dress_tip"],
+        },
+    }
+
 def route_intent(state: ChatState) -> str:
     """Router: Direct to the right node based on intent."""
     routes = {
@@ -76,6 +101,8 @@ def route_intent(state: ChatState) -> str:
         "calming": "calming",
         "routine": "routine",
         "location": "location",
+        "calendar": "calendar",
+        "weather": "weather",
         "general": "general"
     }
     return routes.get(state["intent"], "general")
@@ -104,6 +131,7 @@ def build_graph():
     graph.add_node("location", location_node)
     graph.add_node("general", general_node)
     graph.add_node("calendar", calendar_node)
+    graph.add_node("weather", weather_node)
     # Entry point
     graph.set_entry_point("intent")
 
@@ -117,7 +145,8 @@ def build_graph():
             "routine": "routine",
             "location": "location",
             "general": "general",
-            "calendar": "calendar"
+            "calendar": "calendar",
+            "weather": "weather",
         }
     )
 
@@ -128,18 +157,20 @@ def build_graph():
     graph.add_edge("location", END)
     graph.add_edge("general", END)
     graph.add_edge("calendar", END)
+    graph.add_edge("weather", END)
 
     return graph.compile()
 
 # Compile once at startup
 memoria_graph = build_graph()
 
-def process_message(message: str) -> dict:
+def process_message(message: str, context: dict | None = None) -> dict:
     """Main entry point — run any message through the full graph."""
     initial_state: ChatState = {
         "message": message,
         "intent": "",
         "response": "",
+        "context": normalize_location_context(context) if context else {},
         "raw_data": {}
     }
     result = memoria_graph.invoke(initial_state)

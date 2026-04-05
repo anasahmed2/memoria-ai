@@ -6,7 +6,7 @@
     "date": "2026-04-06",
     "category": "medication",
     "notes": "Blue pill on the kitchen counter",
-    "completed": false
+    "completed": true
   },
   {
     "id": "2",
@@ -15,7 +15,7 @@
     "date": "2026-04-06",
     "category": "social",
     "notes": "She's expecting your call",
-    "completed": false
+    "completed": true
   },
   {
     "id": "3",
@@ -24,6 +24,15 @@
     "date": "2026-04-06",
     "category": "appointment",
     "notes": "Dr. Patel at Main Street Clinic",
+    "completed": true
+  },
+  {
+    "id": "7483507f-0b02-41ac-931e-4ef10e2e76e2",
+    "title": "Walk",
+    "time": "23:00",
+    "date": "2026-04-04",
+    "category": "general",
+    "notes": "Go on a nice walk outside",
     "completed": false
   }
 ]

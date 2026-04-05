@@ -32,6 +32,20 @@ def get_todays_tasks() -> list:
     today = datetime.now().strftime("%Y-%m-%d")
     return [t for t in tasks if t.get("date") == today]
 
+def parse_task_datetime(task: dict) -> datetime | None:
+    """Parse a task's date/time, supporting both 24h and 12h time formats."""
+    date_str = task.get("date", "")
+    time_str = task.get("time", "")
+    if not date_str or not time_str:
+        return None
+
+    for fmt in ("%Y-%m-%d %H:%M", "%Y-%m-%d %I:%M %p"):
+        try:
+            return datetime.strptime(f"{date_str} {time_str}", fmt)
+        except ValueError:
+            continue
+    return None
+
 def get_upcoming_tasks(minutes_ahead: int = 120) -> list:
     """Get tasks happening in the next X minutes."""
     tasks = get_todays_tasks()
@@ -42,9 +56,9 @@ def get_upcoming_tasks(minutes_ahead: int = 120) -> list:
         if task.get("completed"):
             continue
         try:
-            task_time = datetime.strptime(
-                f"{task['date']} {task['time']}", "%Y-%m-%d %H:%M"
-            )
+            task_time = parse_task_datetime(task)
+            if task_time is None:
+                continue
             diff_minutes = (task_time - now).total_seconds() / 60
             if 0 <= diff_minutes <= minutes_ahead:
                 upcoming.append({
@@ -66,9 +80,9 @@ def get_current_tasks() -> list:
         if task.get("completed"):
             continue
         try:
-            task_time = datetime.strptime(
-                f"{task['date']} {task['time']}", "%Y-%m-%d %H:%M"
-            )
+            task_time = parse_task_datetime(task)
+            if task_time is None:
+                continue
             diff_minutes = abs((task_time - now).total_seconds() / 60)
             if diff_minutes <= 5:
                 current.append(task)
@@ -121,6 +135,30 @@ def get_task_response(user_query: str = "What do I have today?") -> dict:
     time_str = now.strftime("%I:%M %p")
 
     if not upcoming and not current:
+        future_pending = []
+        for task in load_tasks():
+            if task.get("completed"):
+                continue
+            task_dt = parse_task_datetime(task)
+            if task_dt is None or task_dt < now:
+                continue
+            future_pending.append({**task, "task_dt": task_dt})
+
+        if future_pending:
+            future_pending.sort(key=lambda x: x["task_dt"])
+            next_task = future_pending[0]
+            when_label = "tomorrow" if next_task["task_dt"].date() == (now.date() + timedelta(days=1)) else next_task["task_dt"].strftime("%A")
+            next_time = next_task["task_dt"].strftime("%I:%M %p")
+            return {
+                "current_time": time_str,
+                "current_tasks": [],
+                "upcoming_tasks": [],
+                "response": (
+                    f"It's {time_str}. You don't have anything else scheduled today. "
+                    f"Your next task is {next_task.get('title', 'a task')} on {when_label} at {next_time}."
+                )
+            }
+
         return {
             "current_time": time_str,
             "current_tasks": [],

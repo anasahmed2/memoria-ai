@@ -6,6 +6,7 @@ router = APIRouter(prefix="/chat", tags=["Chat (Main Entry Point)"])
 
 class ChatRequest(BaseModel):
     message: str
+    context: dict | None = None
 
 @router.post("/")
 def chat(request: ChatRequest):
@@ -13,4 +14,4 @@ def chat(request: ChatRequest):
     The main endpoint — send any message and the AI figures out what to do.
     This is what the frontend will call for everything.
     """
-    return process_message(request.message)
+    return process_message(request.message, request.context)
